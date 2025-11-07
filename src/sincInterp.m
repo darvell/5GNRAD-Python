@@ -13,9 +13,9 @@ function vq = sincInterp(x,v,xq,w)
 %   This file is available under the terms of the NIST License.
 
 %% Input processing
-if isvector(v)
-    v = v(:); % Ensure v is a column vector
-end
+% if isvector(v)
+%     v = v(:); % Ensure v is a column vector
+% end
 
 if size(v, 1) ~= numel(x)
     error('The number of rows in v must match the length of x.');

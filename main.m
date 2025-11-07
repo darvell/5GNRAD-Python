@@ -30,7 +30,7 @@
 %     'examples3GPP/UMa-Av200-8x8-30-133RB','examples3GPP/UMa-Av200-8x8-60', ...
 %     'examples3GPP/UMa-Av200-8x8-120', 'examples3GPP/UMa-Av200-8x8-128ss', ...
 %     'examples3GPP/UMa-Av200-8x8-192ss'};%, 'examples/UMa-Av200-8x4', 'examples/UMa-Av200-8x8','examples/UMa-Av200-16x8','examples/UMa-Av200-16x16','examples/UMa-Av200-24x24'};
-scenarioNameStrVector = {'examples/UMi-Av25'}
+scenarioNameStrVector = {'examples3GPP/UMa-Av200-8x8-30'};
 %% Set path
 rootFolderPath = pwd;
 fprintf('--------5G NR Radar --------\n');
@@ -44,10 +44,12 @@ for i = 1:length(scenarioNameStrVector)
 
     % %% Run
     [simConfig, stConfig, prsConfig, geometry, sensConfig,backgroundChannel,targetChannel] = configScenario(scenarioNameStr);
-    results = run5GNRad(simConfig, stConfig, prsConfig, geometry, sensConfig,backgroundChannel,targetChannel);
+    [results, detStats] = run5GNRad(simConfig, stConfig, prsConfig, geometry, sensConfig,backgroundChannel,targetChannel);
 
     %% Store Results
-    resultsTab = struct2table(results);
+    resultsTab = struct2table(results);    
+    detStatsTab = struct2table(detStats);
+
     outputPath = fullfile(scenarioNameStr, 'Output');
 
     if ~isfolder(outputPath)
@@ -57,5 +59,6 @@ for i = 1:length(scenarioNameStrVector)
         mkdir(outputPath);
     end
     writetable(resultsTab, fullfile(outputPath, 'error.csv'))
+    writetable(detStatsTab, fullfile(outputPath, 'detStats.csv'))
 
 end

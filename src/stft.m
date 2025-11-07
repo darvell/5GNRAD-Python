@@ -74,7 +74,7 @@ dataBlocksParallel = reshape(dataBlocksWindowed, n, p.Results.windowLen,[]); % S
 dataBlocksFft =  fftshift(fft(dataBlocksParallel, p.Results.nfft, 2),2); % FFT
 
 outRaw = dataBlocksFft;
-outMean = mean(abs(dataBlocksFft),3);
+outMean = mean(dataBlocksFft,3);
 if p.Results.dim == 1
     outRaw =permute(outRaw, [2 1 3]);
     outMean = outMean.';

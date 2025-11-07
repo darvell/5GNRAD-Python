@@ -74,6 +74,8 @@ Documentation is available in the [docs/5G_NR_Radar_doc.pdf](docs/5G_NR_Radar_do
 
 - National Institute of Standards and Technology (NIST), “[R1-2505684 Discussion on ISAC Performance Evaluation](https://www.3gpp.org/ftp/tsg_ran/WG1_RL1/TSGR1_122/Docs/R1-2505684.zip),” 3GPP TSG-RAN WG1 Meeting #122
 
+- National Institute of Standards and Technology (NIST), “[R1-2508883 Discussion on ISAC Performance Evaluation](https://www.3gpp.org/ftp/tsg_ran/WG1_RL1/TSGR1_123/Docs/R1-2508883.zip),” 3GPP TSG-RAN WG1 Meeting #123
+
 ---
 
 ## Contributing

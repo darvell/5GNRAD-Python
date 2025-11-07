@@ -1,4 +1,4 @@
-function [AOD, P1,P2] = estimateScatteringGeometry(tx, rx, delay, aoa, varargin)
+function [P, AOD, P1,P2] = estimateScatteringGeometry(tx, rx, delay, aoa, varargin)
 % ESTIMATESCATTERINGGEOMETRY - Computes the Angle of Departure (AoD) and scattering 
 % center position
 %
@@ -36,10 +36,12 @@ cspeed = 299792458; % Speed of light in meters per second
 p = inputParser;
 addParameter(p, 'txHeading', [0 0]);
 addParameter(p, 'rxHeading', [0 0]);
+addParameter(p, 'keepSectorAz', []);          
 parse(p, varargin{:});
 
 txHeading = p.Results.txHeading;
 rxHeading = p.Results.rxHeading;
+keepSectorAz  = p.Results.keepSectorAz;
 
 % Ensure inputs are column vectors
 tx = tx(:);
@@ -91,6 +93,14 @@ P2 = P2';
 [az1, el1] = vector2angle(dod1');
 [az2, el2] = vector2angle(dod2');
 
+if ~isempty(keepSectorAz)
+    in1 = in_interval_wrap(az1, keepSectorAz(1), keepSectorAz(2));
+    in2 = in_interval_wrap(az2, keepSectorAz(1), keepSectorAz(2));
+else
+    in1 = 1;
+    in2 = 1;
+end
+
 %% Find the forward solution
 keepP1 = isPointInPositveHalfSpace(P1, getPlaneCoefficient(tx, txHeading(1), txHeading(2))) & ...
          isPointInPositveHalfSpace(P1, getPlaneCoefficient(rx, rxHeading(1), rxHeading(2)));
@@ -98,8 +108,8 @@ keepP1 = isPointInPositveHalfSpace(P1, getPlaneCoefficient(tx, txHeading(1), txH
 keepP2 = isPointInPositveHalfSpace(P2, getPlaneCoefficient(tx, txHeading(1), txHeading(2))) & ...
          isPointInPositveHalfSpace(P2, getPlaneCoefficient(rx, rxHeading(1), rxHeading(2)));
 
-keepP1 = keepP1 & ~isDegenerating;
-keepP2 = keepP2 & ~isDegenerating;
+keepP1 = keepP1 & ~isDegenerating & in1;
+keepP2 = keepP2 & ~isDegenerating & in2;
 
 %% Prepare output
 P = nan(lenInput, 3);
@@ -110,4 +120,15 @@ AOD = nan(lenInput, 2);
 AOD(keepP1, :) = [az1(keepP1, :), el1(keepP1, :)];
 AOD(keepP2, :) = [az2(keepP2, :), el2(keepP2, :)];
 
+end
+
+function tf = in_interval_wrap(az, a, b)
+% Return true if az (deg) is inside interval [a b] with wrap support.
+% Example: [300 60] means 300°..360° U 0°..60°
+az = mod(az,360); a = mod(a,360); b = mod(b,360);
+if a <= b
+    tf = (az >= a - eps) & (az <= b + eps);
+else
+    tf = (az >= a - eps) | (az <= b + eps); % wrapped
+end
 end
