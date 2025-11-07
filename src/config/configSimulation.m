@@ -46,6 +46,8 @@ if isfile(cfgPath)
     params = fieldToNum(params, 'antennaCouplingEfficiency', [0 1], 'step', eps, 'defaultValue', 0.7);
     params = fieldToNum(params, 'carrierSubcarrierSpacing', 15*2.^(0:4), 'defaultValue', 120);
     params = fieldToNum(params, 'carrierNSizeGrid', [1,275], 'step', 1, 'defaultValue', 66);
+    params = fieldToNum(params, 'nStDrop', [0,10], 'step', 1, 'defaultValue', 1);
+    params = fieldToNum(params, 'maxRangeInterest', [10,2000], 'step', eps, 'defaultValue', 400);
 
 else
     params = [];

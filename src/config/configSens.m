@@ -43,6 +43,8 @@ if isfile(cfgPath)
 
     %% Check validity
     params = fieldToNum(params, 'dopplerFftLen', [1 4096], 'step', eps, 'defaultValue',64);
+    params = fieldToNum(params, 'azFftLen', [1 4096], 'step', eps, 'defaultValue',64);
+    params = fieldToNum(params, 'elFftLen', [1 4096], 'step', eps, 'defaultValue',64);
     params = fieldToNum(params, 'window', {'rect' ,'hamming','blackmanharris','gaussian'}, 'defaultValue', 'blackmanharris');
     params = fieldToNum(params, 'windowLen', [1 params.dopplerFftLen], 'step', 1, 'defaultValue', params.dopplerFftLen);
     params = fieldToNum(params, 'windowOverlap', [0 1-eps], 'step', eps, 'defaultValue', 0.5);
@@ -52,8 +54,15 @@ if isfile(cfgPath)
     params = fieldToNum(params, 'cfarGrdCellVelocity', [0 1e4], 'step', 1, 'defaultValue', 0);
     params = fieldToNum(params, 'cfarTrnCellRange', [0 1e4], 'step', 1, 'defaultValue', 0);
     params = fieldToNum(params, 'cfarTrnCellVelocity', [0 1e4], 'step', 1, 'defaultValue', 0);
+	params = fieldToNum(params, 'cfarGrdCellAzimuth', [0 1e4], 'step', 1, 'defaultValue', 4);
+    params = fieldToNum(params, 'cfarGrdCellElevation', [0 1e4], 'step', 1, 'defaultValue', 3);
+    params = fieldToNum(params, 'cfarTrnCellAzimuth', [0 1e4], 'step', 1, 'defaultValue', 8);
+    params = fieldToNum(params, 'cfarTrnCellElevation', [0 1e4], 'step', 1, 'defaultValue', 6);
     params = fieldToNum(params, 'cfarThreshold', [0 1e4], 'step', eps, 'defaultValue', 3);  
     params = fieldToNum(params, 'angleEstimationMethod', {'ideal' ,'nearest','scan'}, 'defaultValue', 'ideal');
+    params = fieldToNum(params, 'rdaThreshold', [0 1e4], 'step', eps, 'defaultValue', 20);
+    params = fieldToNum(params, 'nmsMaxPeaks', [0 1e4], 'step', 1, 'defaultValue', 200);
+    params = fieldToNum(params, 'nmsRadius', [0 1e4], 'step', 1, 'defaultValue', [2 2 1 1]);
 
 
 else

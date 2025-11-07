@@ -1,8 +1,18 @@
-pri	0.000625
-interBI	0.1
-dopplerFftLen	128
+dopplerFftLen	256
 window	blackmanharris
-windowLen	16
-windowOverlap	0.8
-pulsesCpi	64
-sparseCsi	1
+windowLen	256
+windowOverlap	0
+cfarGrdCellRange	22
+cfarGrdCellVelocity	8
+cfarTrnCellRange	24
+cfarTrnCellVelocity	10
+cfarTrnCellAzimuth	8
+cfarTrnCellElevation	6
+cfarGrdCellAzimuth	4
+cfarGrdCellElevation	3
+cfarThreshold	9.37
+azFftLen	128
+elFftLen	128
+rdaThreshold	10
+nmsRadius	[4 2 2 2]
+nmsMaxPeaks	10

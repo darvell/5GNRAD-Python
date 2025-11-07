@@ -1,4 +1,4 @@
-function [out, outCir,tgtPg, syncOffset] = getSensingCdl(bsPos,tgtPos,tgtVel, fc, pri, varargin)
+function [out, outCir,outCirAntennaPort, tgtPg, syncOffset] = getSensingCdl(bsPos,tgtPos,tgtVel, fc, pri, varargin)
 % GETSENSINGCDL Generate a channel delay line (CDL) model with a target
 %
 %   [OUT, OUTCIR] = GETSENSINGCDL(BSPOS, TGTPOS, TGTVEL, FC, PRI) computes
@@ -71,6 +71,7 @@ addParameter(p, 'scenario', 'UMi-AV');
 addParameter(p, 'angleEstimation', 'ideal', @(x) any(validatestring(x, validAngleEstimation)));
 addParameter(p, 'backgroundChannel', []);
 addParameter(p, 'targetChannel', []);
+addParameter(p, 'returnElementCIR', true);
 
 
 % Parse inputs
@@ -94,6 +95,7 @@ else
     sampleRate = 100e6;
 end
 timeVector = 0:pri:pri*(nRealization-1);
+numElm = getNumElements(transmitArray);
 
 if isempty(targetChannel)
     tgtRcs =  getSigmaRCS('uav-small', 'returnLargeScale',1);
@@ -122,27 +124,36 @@ if isempty(targetChannel)
     % Since it's a monostatic system, AoD is the same as AoA
     aodAzTgt = aoaAzTgt;
     aodElTgt = aoaElTgt;
+    aoaAzLOS = aoaAzTgt(1);
+    aoaElLOS = aoaElTgt(1);
 else
 
-    tgtDelay = targetChannel.PathDelays;
-    aoaAzTgt = wrapTo180(targetChannel.AnglesAoA);
+    tgtDelay = vertcat(targetChannel.PathDelays);
+    allAoaAz = [targetChannel.AnglesAoA];
+    aoaAzLOS = allAoaAz(1,:);
+    aoaAzTgt = wrapTo180(allAoaAz(:));
 
     % Compute Elevation AoA (in degrees)
-    aoaElTgt = 90-targetChannel.AnglesZoA;
-
+    allAoaEl = [targetChannel.AnglesZoA];
+    aoaElLOS = 90-allAoaEl(1,:);
+    aoaElTgt = 90-vertcat(targetChannel.AnglesZoA);
+    
     % Since it's a monostatic system, AoD is the same as AoA
-    aodAzTgt = wrapTo180(targetChannel.AnglesAoD);
-    aodElTgt = 90-targetChannel.AnglesZoD;
+    aodAzTgt = wrapTo180(vertcat(targetChannel.AnglesAoD));
+    aodElTgt = 90-vertcat(targetChannel.AnglesZoD);
 
     dodVector = angle2vector(aodAzTgt, 90-aodElTgt, 1)./vecnorm(angle2vector(aodAzTgt, 90-aodElTgt, 1),2,2);
     doaVector = angle2vector(aoaAzTgt, 90-aoaElTgt, 1)./vecnorm(angle2vector(aoaAzTgt, 90-aoaElTgt, 1),2,2);
     vRel = dodVector * tgtVel'+ doaVector * tgtVel';
+    nt = size(vRel,2);
+    vRel = reshape(vRel, [], nt^2);
+    vRel = reshape(vRel(:,1:nt+1:end),[],1);
 
     fD = vRel/lambda;
-
-    dopplerPhase = exp(1j * 2 * pi * fD * timeVector).* exp(1j*targetChannel.InitialPhases(:,1));  
-    tgtPg = 10*log10(targetChannel.AveragePathGains);
-    HasLOSCluster = targetChannel.HasLOSCluster;
+    polarizationPhase = vertcat(targetChannel.InitialPhases);
+    dopplerPhase = exp(1j * 2 * pi * fD * timeVector).* exp(1j*polarizationPhase(:,1));  
+    tgtPg = 10*log10(vertcat(targetChannel.AveragePathGains));
+    HasLOSCluster = vertcat(targetChannel.HasLOSCluster);
 end
 
 %% CDL Channel Configuration
@@ -154,33 +165,27 @@ delays = backgroundChannel.PathDelays.';
 phases = backgroundChannel.InitialPhases.';
 envPgLin = backgroundChannel.AveragePathGains.';
 
-if isempty(delays)
-    aoaAz =  0;
-    aodAz = 0;
-    aoaEl =  0;
-    aodEl =0;
-    delays = tgtDelay;
-    phases = 0;
-end
-
 %% Combine MPC descriptors (UAV and CDL)
 % Path gain for UAV and CDL
 envPg = 10*log10(abs(envPgLin));
-path_gain_combined = [tgtPg', envPg];
+tgtRayPowerThr = 40;
+keepPath  = (tgtPg>(max(tgtPg)-tgtRayPowerThr));
+
+path_gain_combined = [tgtPg(keepPath)', envPg];
 
 % Delays for UAV and CDL
-delays_combined = [tgtDelay', delays];
+delays_combined = [tgtDelay(keepPath)', delays];
 
 % AoA (Azimuth and Elevation) for UAV and CDL
-aoaAz_combined = [aoaAzTgt', aoaAz];
-aoaEl_combined = [aoaElTgt', aoaEl];
+aoaAz_combined = [aoaAzTgt(keepPath)', aoaAz];
+aoaEl_combined = [aoaElTgt(keepPath)', aoaEl];
 
 % AoD (Azimuth and Elevation) for UAV and CDL
-aodAz_combined = [aodAzTgt', aodAz];
-aodEl_combined = [aodElTgt', aodEl];
+aodAz_combined = [aodAzTgt(keepPath)', aodAz];
+aodEl_combined = [aodElTgt(keepPath)', aodEl];
 
 % Phases for UAV and CDL (already computed)
-phases_combined = [angle(dopplerPhase); repmat(phases, nRealization,1).'].';
+phases_combined = [angle(dopplerPhase(keepPath,:)); repmat(phases, nRealization,1).'].';
 
 %% Sort combined MPC descriptors by delay
 [delays_sorted, sortIdx] = sort(delays_combined);  % Sort delays and get indices
@@ -196,7 +201,7 @@ phases_sorted = phases_combined(:,sortIdx);
 nSamples = ceil((delays_sorted(end)-delays_sorted(1))*sampleRate)+10;
 timeSampling = (0:nSamples-1).'/sampleRate;
 cir = (sqrt(10.^(path_gain_sorted/10)).*exp(1j*phases_sorted)).';
-dropRayId = (aodEl_sorted>=90 | aoaEl_sorted>=90 | aodEl_sorted<=-90 | aoaEl_sorted<=-90 | path_gain_sorted<(max(tgtPg)-60));
+dropRayId = (aodEl_sorted>=90 | aoaEl_sorted>=90 | aodEl_sorted<=-90 | aoaEl_sorted<=-90 );
 cir(dropRayId,:) = [];
 aodAz_sorted(dropRayId) = [];
 aodEl_sorted(dropRayId) = [];
@@ -238,26 +243,63 @@ switch angleEstimation
         angleEstimate = scanvector(idmax,:);
 
     case 'ideal'
-        angleEstimate =  [aoaAzTgt(1), aoaElTgt(1)];
+        % angleEstimate =  [aoaAzTgt(1), aoaElTgt(1)];
+        angleEstimate = [aoaAzLOS', aoaElLOS'] ;
 end
 
-txBF = conj(txSteeringVector(fc, angleEstimate'));
-rxBF = conj(rxSteeringVector(fc, angleEstimate'));
+% I am building two CIR. 1) assuming tx/rx analog beamforming towards all
+% targets 2) Full digital CIR (per antenna port) . Initial implementation
+% for hybrid is also there need to check more so keep commented for now
+
+% Get CIR per antenna port
+txBF = sum(conj(txSteeringVector(fc, angleEstimate')), 2)/numel(aoaAzLOS);
+txGain = txPV.' * txBF;
+
+txGain_omni = ones(size(txPV,2),1);   %#ok<NASGU> % [Path x 1], no TX directivity
+A = permute(cir, [2 3 1]);            % [Time x 1 x P]
+% B = reshape(txGain_omni, 1, 1, []);     % [1 x 1 x P]
+B = reshape(txGain, 1, 1, []);     % [1 x 1 x P]
+
+C = permute(rxPV, [3 1 2]);           % [1 x Nrx x P]
+cirAntennaPort = permute(A .* B .* C, [3,1,2]);        % [T x Nrx x P] to [P x Time x Nrx]
+
+% % In case of hybrid beamforming, design the combiner matrix WRF
+% 
+% NRF = 2;
+% W_RF = buildPartialCombiner(receiveArray, fc, NRF, angleEstimate);
+% 
+% % Flatten (T,P) and multiply by conj(W_RF) along element dimension
+% X = reshape(permute(cirAntennaPort, [2 1 3]), [], size(cirAntennaPort,3));   % [T*P x Nrx]
+% Y = X * conj(W_RF);                                   % [T*P x NRF]
+% cirAntennaPort = permute(reshape(Y, [nRealization, size(cirAntennaPort,1), NRF]), [2 1 3]);  % [P x T x NRF]
+
+
+txBF = sum(conj(txSteeringVector(fc, angleEstimate')), 2)/numel(aoaAzLOS);
+rxBF = sum(conj(rxSteeringVector(fc, angleEstimate')),2)/numel(aoaAzLOS);
 txGain = txPV.' * txBF;
 rxGain = rxBF.' * rxPV;
 cir = (cir.'.*txGain.'.*rxGain).';
 
 outCir = cir;
+outCirAntennaPort = zeros(nSamples, nRealization, numElm);
 if ~isempty(bandwidth)
     cirInt = sincInterp(delays_sorted-delays_sorted(1), outCir, timeSampling, bandwidth);
     outCir = cirInt;
+    for i = 1:numElm
+        cirIntAntennaPort = sincInterp(delays_sorted-delays_sorted(1), cirAntennaPort(:,:,i), timeSampling, bandwidth);
+        outCirAntennaPort(:,:,i) = cirIntAntennaPort;
+    end
 end
-
-% figure, stem(delays, envPg, 'BaseValue', -250), hold on, stem(tgtDelay, tgtPg, 'BaseValue', -250)
+% if nSamples>1024
+%     outCirAntennaPort = outCirAntennaPort(1:1024,:,:);
+% end
+% figure, stem(delays, envPg, 'BaseValue', -250), hold on, stem(reshape(tgtDelay, [],nt), reshape(tgtPg,[],nt), 'BaseValue', -250)
 % hold on, plot(timeSampling+delays_sorted(1),20*log10(abs(outCir(:,1))))
+% plot(timeSampling+delays_sorted(1),20*log10(abs(outCirAntennaPort(:,1,1))))
+% legend('Background', 'Target', 'CIR-Beamformed', 'CIR-Antenna Port')
 % grid on
 % ylabel('Power (dB)')
-% legend('Background', 'Target', 'CIR')
+% % legend('Background', 'Target', 'CIR')
 % xlabel('Delay (s)')
 % figure, plot(aodAzTgt, aodElTgt,'o'), hold on, plot(aodAz, aodEl,'o'),
 % plot(angleEstimate(1), angleEstimate(2), '*', 'MarkerSize',12)
