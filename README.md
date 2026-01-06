@@ -2,6 +2,8 @@
 
 > MATLAB end to end radar processing chain for 5G NR.
 
+This repository is an attempt to port the original MATLAB implementation to pure Python.
+
 **5GNRad** is a MATLAB simulation framework modeling the radar sensing capability of a monostatic 5G NR Base Station (BS), reusing the Positioning Reference Signal (PRS) defined in the 3GPP TS 38.211 standard to estimate the delay and angle of airborne targets. The tool supports propagation scenarios compliant with TR 38.901 and includes recent Release 19 RCS and clutter models.
 
 ---
